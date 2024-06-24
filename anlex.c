@@ -1,10 +1,11 @@
 /*
- *	Analizador Léxico	
+ *	Analizador Sintáctico Descendente	
  *	Curso: Compiladores y Lenguajes de Bajo de Nivel
- *	Práctica de Programación Nro. 1
+ *	Práctica de Programación Nro. 2
  *	
  *	Descripcion:
- *	Implementa un analizador léxico que reconoce la sintaxis JSON.
+ *	 Implementar un analizador sintáctico descendente recursivo o LL(1) para 
+ *	 el lenguaje Json simplificado.
  *	
  */
 
@@ -27,12 +28,72 @@ char buff[2*TAMBUFF];	// Buffer para lectura de archivo fuente
 char lexema[TAMLEX];	// Utilizado por el analizador lexico
 int delantero=-1;		// Utilizado por el analizador lexico
 int fin=0;				// Utilizado por el analizador lexico
+int sintaxError=0;		// Utilizado por el analizador sintactico
 int numLinea=1;			// Numero de Linea
 
 /**************** Funciones **********************/
 
 
 // Rutinas del analizador lexico
+void error(const char* mensaje);
+void getToken();
+void match(int expToken);
+
+// Rutinas del analizador sintactico
+void json();
+void element();
+void element_list();
+void element_listB();
+void array();
+void arrayB();
+void object();
+void objectB();
+void attributes_list();
+void attributes_listB();
+void attribute();
+void attribute_name();
+void attribute_value();
+void sincronizar(int expToken);
+
+
+/* BEGIN: main */
+int main(int argc,char* args[])
+{
+	int beforeLine = 0;
+	initTabla();
+	initTablaSimbolos();
+
+	if(argc > 1)
+	{
+		if (!(archivo=fopen(args[1],"rt")))
+		{
+			printf("Archivo no encontrado.\n");
+			exit(1);
+		}
+
+		getToken();
+		json();
+
+		if (sintaxError == 0)
+        {
+			printf("El fuente es sintácticamente correcto.\n");
+        }
+        else
+        {
+            printf("El fuente es sintácticamente incorrecto.\n");
+        }
+
+		fclose(archivo);
+	} else {
+		printf("Debe pasar como parametro el path al archivo fuente.\n");
+		exit(1);
+	}
+
+	return 0;
+}
+/* END: main */
+
+// BEGIN: Rutinas del analizador lexico
 
 void error(const char* mensaje)
 {
@@ -289,38 +350,183 @@ void getToken()
 	
 }
 
-int main(int argc,char* args[])
+void match(int expToken)
 {
-	int beforeLine = 0;
-	// inicializar analizador lexico
-	initTabla();
-	initTablaSimbolos();
-
-	if(argc > 1)
-	{
-		if (!(archivo=fopen(args[1],"rt")))
-		{
-			printf("Archivo no encontrado.\n");
-			exit(1);
-		}
-
-		while (t.compLex!=EOF2){
-			getToken();
-			if(beforeLine == 0) {
-				beforeLine = numLinea;
-				printf("Lin %3d: %s",numLinea,getTokenFromCode(t.compLex));
-			} else if(beforeLine != numLinea ) {
-				beforeLine = numLinea;
-				printf("\nLin %3d: %s",numLinea,getTokenFromCode(t.compLex));
-			} else {
-				printf("\t%s",getTokenFromCode(t.compLex));
-			}
-		}
-		fclose(archivo);
-	}else{
-		printf("Debe pasar como parametro el path al archivo fuente.\n");
-		exit(1);
-	}
-
-	return 0;
+	if (t.compLex == expToken)
+    {
+        getToken();
+    }
+    else
+    {
+        sprintf(cad, "Se esperaba %s", getTokenFromCode(expToken)); //sprintf(msg,"%s no esperado",getTokenFromCode(expToken));
+        error(cad); //error(msg);
+		sincronizar(expToken);
+    }
 }
+
+// END: Rutinas del analizador lexico
+
+
+// BEGIN: Rutinas del analizador sintactico
+
+void json()
+{
+    element();
+	//match(EOF2);
+}
+
+void element()
+{
+	if (t.compLex == L_LLAVE)
+    {
+        object();
+    }
+    else if (t.compLex == L_CORCHETE)
+    {
+        array();
+    }
+    else
+    {
+		sintaxError = 1;
+        error("Elemento JSON no válido");
+    }
+}
+
+void array()
+{
+	match(L_CORCHETE);
+    arrayB();
+}
+
+void arrayB()
+{
+	if (t.compLex == R_CORCHETE)
+    {
+        match(R_CORCHETE);
+    }
+    else if (t.compLex == L_CORCHETE || t.compLex == L_LLAVE)
+    {
+        element_list();
+        match(R_CORCHETE);
+    }
+    else
+    {
+		sintaxError = 1;
+        error("Array no válido");
+    }
+}
+
+void element_list()
+{
+	element();
+	element_listB();
+}
+
+void element_listB()
+{
+	if (t.compLex == COMA)
+    {
+        match(COMA);
+        element();
+        element_listB();
+    }
+    else
+    {
+		// Permite emptyString
+        //error("Lista de elementos no válida");
+    }
+}
+
+void object()
+{
+    match(L_LLAVE);
+    objectB();
+}
+
+void objectB()
+{
+	if (t.compLex == R_LLAVE)
+    {
+        match(R_LLAVE);
+    }
+    else
+    {
+        attributes_list();
+		match(R_LLAVE);
+    }
+}
+
+void attributes_list()
+{
+    attribute();
+    attributes_listB();
+}
+
+void attributes_listB()
+{
+	if (t.compLex == COMA)
+	{
+		match(COMA);
+        attribute();
+        attributes_listB();
+	} else {
+		// Permite emptyString
+        //error("Lista de atributos no válida");
+	}
+}
+
+void attribute()
+{
+	attribute_name();
+    match(DOS_PUNTOS);
+    attribute_value();
+}
+
+void attribute_name()
+{
+	if (t.compLex == LITERAL_CADENA)
+    {
+        match(LITERAL_CADENA);
+    }
+    else
+    {
+		sintaxError = 1;
+        error("Nombre de atributo no válido");
+    }
+}
+
+void attribute_value()
+{
+	if (t.compLex == LITERAL_CADENA || t.compLex == LITERAL_NUM || t.compLex == PR_TRUE || t.compLex == PR_FALSE || t.compLex == PR_NULL)
+    {
+        match(t.compLex);
+    }
+    else if (t.compLex == L_LLAVE)
+    {
+        object();
+    }
+    else if (t.compLex == L_CORCHETE)
+    {
+        array();
+    }
+    else
+    {
+		sintaxError = 1;
+        error("Valor de atributo no válido");
+    }
+}
+
+void sincronizar(int expToken)
+{
+	// Modo Pánico: continuar hasta encontrar un punto de sincronización
+    while (t.compLex != expToken && t.compLex != EOF2)
+    {
+        getToken();
+    }
+    if (t.compLex == expToken)
+    {
+        getToken();
+    }
+}
+
+// END: Rutinas del analizador sintactico

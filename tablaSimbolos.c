@@ -108,7 +108,7 @@ void insertTablaSimbolos(const char *s, int n)
 }
 
 char* getTokenFromCode(int code) {
-  switch (code) {
+	switch (code) {
 		case L_CORCHETE:
 			return "L_CORCHETE";
 		case R_CORCHETE:
