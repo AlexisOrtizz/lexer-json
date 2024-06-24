@@ -1,5 +1,4 @@
 # Compiladores: lexer-json
-==========================
 
 Compiladores FPUNA
 
