@@ -40,6 +40,7 @@ void getToken();
 void match(int expToken);
 
 // Rutinas del analizador sintactico
+void errorSyntax(const char* mensaje);
 void json();
 void element();
 void element_list();
@@ -97,7 +98,7 @@ int main(int argc,char* args[])
 
 void error(const char* mensaje)
 {
-	printf("Lin %d: Error Lexico. %s.\n",numLinea,mensaje);	
+	printf("Lin %d: Error Lexico. %s.\n", numLinea, mensaje);	
 }
 
 void getToken()
@@ -358,8 +359,9 @@ void match(int expToken)
     }
     else
     {
-        sprintf(cad, "Se esperaba %s", getTokenFromCode(expToken)); //sprintf(msg,"%s no esperado",getTokenFromCode(expToken));
-        error(cad); //error(msg);
+		sintaxError = 1;
+        sprintf(cad, "Se esperaba %s", getTokenFromCode(expToken));
+        errorSyntax(cad);
 		sincronizar(expToken);
     }
 }
@@ -368,6 +370,11 @@ void match(int expToken)
 
 
 // BEGIN: Rutinas del analizador sintactico
+
+void errorSyntax(const char* mensaje)
+{
+	printf("Lin %d: Error Sintactico. %s.\n", numLinea, mensaje);	
+}
 
 void json()
 {
@@ -387,8 +394,7 @@ void element()
     }
     else
     {
-		sintaxError = 1;
-        error("Elemento JSON no válido");
+        errorSyntax("Elemento JSON no válido");
     }
 }
 
@@ -411,8 +417,7 @@ void arrayB()
     }
     else
     {
-		sintaxError = 1;
-        error("Array no válido");
+        errorSyntax("Array no válido");
     }
 }
 
@@ -433,7 +438,7 @@ void element_listB()
     else
     {
 		// Permite emptyString
-        //error("Lista de elementos no válida");
+        //errorSyntax("Lista de elementos no válida");
     }
 }
 
@@ -471,7 +476,7 @@ void attributes_listB()
         attributes_listB();
 	} else {
 		// Permite emptyString
-        //error("Lista de atributos no válida");
+        //errorSyntax("Lista de atributos no válida");
 	}
 }
 
@@ -490,8 +495,7 @@ void attribute_name()
     }
     else
     {
-		sintaxError = 1;
-        error("Nombre de atributo no válido");
+        errorSyntax("Nombre de atributo no válido");
     }
 }
 
@@ -511,8 +515,7 @@ void attribute_value()
     }
     else
     {
-		sintaxError = 1;
-        error("Valor de atributo no válido");
+        errorSyntax("Valor de atributo no válido");
     }
 }
 
