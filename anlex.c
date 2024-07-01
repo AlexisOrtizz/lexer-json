@@ -41,20 +41,40 @@ void match(int expToken);
 
 // Rutinas del analizador sintactico
 void errorSyntax(const char* mensaje);
-void json();
-void element();
-void element_list();
-void element_listB();
-void array();
-void arrayB();
-void object();
-void objectB();
-void attributes_list();
-void attributes_listB();
-void attribute();
-void attribute_name();
-void attribute_value();
+void json(int);
+void element(int, int);
+void element_list(int);
+void element_listB(int);
+void array(int);
+void arrayB(int);
+void object(int, int);
+void objectB(int, int);
+void attributes_list(int);
+void attributes_listB(int);
+void attribute(int);
+char* attribute_name(int);
+void attribute_value(int, char*);
 void sincronizar(int expToken);
+
+void printIndented(int indent) {
+    for (int i = 0; i < indent; i++) {
+        printf("  ");
+    }
+}
+
+void printToken(token t) {
+    if (t.compLex == LITERAL_CADENA || t.compLex == LITERAL_NUM) {
+        printf("%s", t.pe->lexema);
+    } else if (t.compLex == PR_TRUE) {
+        printf("true");
+    } else if (t.compLex == PR_FALSE) {
+        printf("false");
+    } else if (t.compLex == PR_NULL) {
+        printf("null");
+    } else {
+        printf("%s", getTokenFromCode(t.compLex));
+    }
+}
 
 
 /* BEGIN: main */
@@ -73,7 +93,7 @@ int main(int argc,char* args[])
 		}
 
 		getToken();
-		json();
+		json(beforeLine);
 
 		if (sintaxError == 0)
         {
@@ -376,35 +396,35 @@ void errorSyntax(const char* mensaje)
 	printf("Lin %d: Error Sintactico. %s.\n", numLinea, mensaje);	
 }
 
-void json()
+void json(int indent)
 {
-    element();
-	//match(EOF2);
+    element(indent, TRUE);
 }
 
-void element()
+void element(int indent, int ignoreTag)
 {
 	if (t.compLex == L_LLAVE)
     {
-        object();
+        object(indent, ignoreTag);
     }
     else if (t.compLex == L_CORCHETE)
     {
-        array();
+        array(indent);
     }
     else
     {
         errorSyntax("Elemento JSON no válido");
+		//sincronizar(L_LLAVE);  // Sincronización en el modo de pánico
     }
 }
 
-void array()
+void array(int indent)
 {
 	match(L_CORCHETE);
-    arrayB();
+    arrayB(indent);
 }
 
-void arrayB()
+void arrayB(int indent)
 {
 	if (t.compLex == R_CORCHETE)
     {
@@ -412,7 +432,7 @@ void arrayB()
     }
     else if (t.compLex == L_CORCHETE || t.compLex == L_LLAVE)
     {
-        element_list();
+        element_list(indent + 1);
         match(R_CORCHETE);
     }
     else
@@ -421,101 +441,112 @@ void arrayB()
     }
 }
 
-void element_list()
+void element_list(int indent)
 {
-	element();
-	element_listB();
+	element(indent, FALSE);
+	element_listB(indent);
 }
 
-void element_listB()
+void element_listB(int indent)
 {
 	if (t.compLex == COMA)
     {
         match(COMA);
-        element();
-        element_listB();
-    }
-    else
-    {
-		// Permite emptyString
-        //errorSyntax("Lista de elementos no válida");
+        element(indent, FALSE);
+        element_listB(indent);
     }
 }
 
-void object()
+void object(int indent, int ignoreTag)
 {
     match(L_LLAVE);
-    objectB();
+	printIndented(indent);
+	if(!ignoreTag) printf("<item>\n");
+    objectB(indent, ignoreTag);
 }
 
-void objectB()
+void objectB(int indent, int ignoreTag)
 {
 	if (t.compLex == R_LLAVE)
     {
         match(R_LLAVE);
+		printIndented(indent);
+    	if(!ignoreTag) printf("</item>\n");
     }
     else
     {
-        attributes_list();
+        attributes_list(indent + 1);
 		match(R_LLAVE);
+		printIndented(indent);
+    	if(!ignoreTag) printf("</item>\n");
     }
 }
 
-void attributes_list()
+void attributes_list(int indent)
 {
-    attribute();
-    attributes_listB();
+    attribute(indent);
+    attributes_listB(indent);
 }
 
-void attributes_listB()
+void attributes_listB(int indent)
 {
 	if (t.compLex == COMA)
 	{
 		match(COMA);
-        attribute();
-        attributes_listB();
-	} else {
-		// Permite emptyString
-        //errorSyntax("Lista de atributos no válida");
+        attribute(indent);
+        attributes_listB(indent);
 	}
 }
 
-void attribute()
+void attribute(int indent)
 {
-	attribute_name();
+	char* endLex = attribute_name(indent);
     match(DOS_PUNTOS);
-    attribute_value();
+    attribute_value(indent, endLex);
 }
 
-void attribute_name()
+char* attribute_name(int indent)
 {
+	char* lexema = t.pe->lexema;
 	if (t.compLex == LITERAL_CADENA)
     {
+		printIndented(indent);
+		printf("<%s>", lexema);
         match(LITERAL_CADENA);
+		return lexema;
     }
     else
     {
         errorSyntax("Nombre de atributo no válido");
+		//sincronizar(LITERAL_CADENA);  // Sincronización en el modo de pánico
+		return NULL;  // No se puede obtener el nombre de atributo en este caso
     }
 }
 
-void attribute_value()
+void attribute_value(int indent, char* endLex)
 {
 	if (t.compLex == LITERAL_CADENA || t.compLex == LITERAL_NUM || t.compLex == PR_TRUE || t.compLex == PR_FALSE || t.compLex == PR_NULL)
     {
-        match(t.compLex);
+        printToken(t);
+		match(t.compLex);
+		printf("</%s>\n", endLex);
     }
     else if (t.compLex == L_LLAVE)
     {
-        object();
+        object(indent + 1, FALSE);
+		printIndented(indent);
+        printf("</%s>\n", endLex);
     }
     else if (t.compLex == L_CORCHETE)
     {
-        array();
+        array(indent + 1);
+		printIndented(indent);
+        printf("</%s>\n", endLex);
     }
     else
     {
         errorSyntax("Valor de atributo no válido");
+		//sincronizar(L_LLAVE);  // Sincronización en el modo de pánico
     }
 }
 

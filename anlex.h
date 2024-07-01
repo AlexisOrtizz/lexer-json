@@ -23,6 +23,9 @@
 #define TAMBUFF 	5
 #define TAMLEX 		50
 #define TAMHASH 	101
+// Constants
+#define TRUE 1
+#define FALSE 0
 
 /************* Estructuras ********************/
 
