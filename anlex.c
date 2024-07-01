@@ -11,7 +11,7 @@
 
 /*********** Inclusión de cabecera **************/
 #include "anlex.h"
-
+#include "util.h"
 
 /************* Variables globales **************/
 
@@ -42,13 +42,13 @@ void match(int expToken);
 // Rutinas del analizador sintactico
 void errorSyntax(const char* mensaje);
 void json(int);
-void element(int, int);
+void element(int, int); // segundo parametro un boolean para ignorar el tag <item></item> por primera vez
 void element_list(int);
 void element_listB(int);
 void array(int);
 void arrayB(int);
-void object(int, int);
-void objectB(int, int);
+void object(int, int); // segundo parametro un boolean para ignorar el tag <item></item> por primera vez
+void objectB(int, int); // segundo parametro un boolean para ignorar el tag <item></item> por primera vez
 void attributes_list(int);
 void attributes_listB(int);
 void attribute(int);
@@ -508,12 +508,14 @@ void attribute(int indent)
 char* attribute_name(int indent)
 {
 	char* lexema = t.pe->lexema;
+	char* lexWithoutQuotes = remove_quotes(lexema);
+
 	if (t.compLex == LITERAL_CADENA)
     {
 		printIndented(indent);
-		printf("<%s>", lexema);
+		printf("<%s>", lexWithoutQuotes);
         match(LITERAL_CADENA);
-		return lexema;
+		return lexWithoutQuotes;
     }
     else
     {
@@ -530,18 +532,21 @@ void attribute_value(int indent, char* endLex)
         printToken(t);
 		match(t.compLex);
 		printf("</%s>\n", endLex);
+		free(endLex); // liberar memoria
     }
     else if (t.compLex == L_LLAVE)
     {
         object(indent + 1, FALSE);
 		printIndented(indent);
         printf("</%s>\n", endLex);
+		free(endLex); // liberar memoria
     }
     else if (t.compLex == L_CORCHETE)
     {
         array(indent + 1);
 		printIndented(indent);
         printf("</%s>\n", endLex);
+		free(endLex); // liberar memoria
     }
     else
     {
