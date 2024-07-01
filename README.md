@@ -18,3 +18,4 @@ Para compilar: gcc anlex.c tablaSimbolos.c -o anlex
 # Ramas
 * Tarea 1: `master`
 * Tarea 2: `tarea2`
+* Tarea 3: `tarea3`
